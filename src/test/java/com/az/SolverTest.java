@@ -28,4 +28,14 @@ class SolverTest {
         assertEquals(Set.of("fifty"), solver.filter(Set.of("kitty", "fifty"), "kitty", "BGBGG"));
         assertEquals(Set.of("plush"), solver.filter(Set.of("plush", "lupus"), "lupus", "YYYBY"));
     }
+
+    @Test
+    public void testFilter2() {
+        assertEquals(Set.of("allay"), solver.filter(Set.of("bylaw", "allay"), "villa", "BBGYY"));
+    }
+
+    @Test
+    public void testFilter3() {
+        assertEquals(Set.of("baker"), solver.filter(Set.of("taker", "baker"), "taker", "BGGGG"));
+    }
 }

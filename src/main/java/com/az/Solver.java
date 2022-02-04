@@ -20,10 +20,14 @@ public class Solver {
 
     private Set<String> answers;
     private Set<String> guesses;
+    private Set<String> guessesAndAnswers;
 
     public void init() {
         answers = new LinkedHashSet<>(readLines("/answers.txt"));
         guesses = new HashSet<>(readLines("/guesses.txt"));
+        guessesAndAnswers = new HashSet<>();
+        guessesAndAnswers.addAll(answers);
+        guessesAndAnswers.addAll(guesses);
     }
 
     public List<String> guessesFor(String answer) {
@@ -34,39 +38,44 @@ public class Solver {
         List<String> result = new ArrayList<>();
 
         Set<String> answers = this.answers;
+        Set<String> guesses = this.answers;
+        //        Set<String> guesses = this.guesses;
+        //        Set<String> guesses = this.guessesAndAnswers;
 
         String match = null;
         for (String guess : seed) {
             match = match(guess, answer);
             answers = filter(answers, guess, match);
+            guesses = filter(guesses, guess, match);
             result.add(guess);
         }
 
         while (!"GGGGG".equals(match)) {
-            String guess = nextGuess(answers);
+            String guess = nextGuess(guesses, answers);
             match = match(guess, answer);
             answers = filter(answers, guess, match);
+            guesses = filter(guesses, guess, match);
             result.add(guess);
         }
 
         return result;
     }
 
-    private String nextGuess(Set<String> answers) {
-        int max = 0;
-        String best = null;
-        for (String guess : answers) {
+    private String nextGuess(Set<String> guesses, Set<String> answers) {
+        int maxGuess = 0;
+        String bestGuess = null;
+        for (String guess : guesses) {
             Set<String> various = new HashSet<>();
             for (String answer : answers) {
                 various.add(match(guess, answer));
             }
-            if (various.size() >= max) {
-                max = various.size();
-                best = guess;
+            if (various.size() >= maxGuess) {
+                maxGuess = various.size();
+                bestGuess = guess;
             }
         }
 
-        return best;
+        return bestGuess;
     }
 
     Set<String> filter(Set<String> answers, String guess, String match) {
@@ -91,7 +100,7 @@ public class Solver {
                     if (guessChar == answerArray[i]) {
                         continue nextAnswer;
                     }
-                    final int foundIndex = answer.indexOf(guessChar);
+                    final int foundIndex = indexOf(answerArray, guessChar);
                     if (foundIndex < 0) {
                         continue nextAnswer;
                     }
@@ -101,7 +110,7 @@ public class Solver {
 
             for (int i = 0; i < match.length(); i++) {
                 if (match.charAt(i) == 'B') {
-                    if (contains2(answerArray, guess.charAt(i))) {
+                    if (contains(answerArray, guess.charAt(i))) {
                         continue nextAnswer;
                     }
                 }
@@ -109,21 +118,26 @@ public class Solver {
             result.add(answer);
         }
 
-        if (result.isEmpty()) {
-            throw new IllegalStateException("No words left");
-        }
+        //        if (result.isEmpty()) {
+        //            throw new IllegalStateException("No words left");
+        //        }
 
         return result;
     }
 
-    public static boolean contains2(final char[] array, final char v) {
-        for (final char e : array) {
+    public static boolean contains(final char[] array, final char v) {
+        return indexOf(array, v) >= 0;
+    }
+
+    public static int indexOf(final char[] array, final char v) {
+        for (int i = 0; i < array.length; i++) {
+            char e = array[i];
             if (e == v) {
-                return true;
+                return i;
             }
         }
 
-        return false;
+        return -1;
     }
 
     String match(String guess, String answer) {
@@ -168,17 +182,39 @@ public class Solver {
         }
     }
 
-    public static void main(String[] args) throws URISyntaxException, IOException {
+    public static void main(String[] args) {
         final Solver solver = new Solver();
         solver.init();
 
+        //        Set<String> answers = solver.answers;
+        //        answers = solver.filter(answers, "bingo", "BYBGB");
+        //        answers = solver.filter(answers, "rates", "BYBYB");
+        //        System.out.println(solver.nextGuess(answers, answers));
+//        System.out.println(solver.guessesFor("pleat", List.of()));
+                guessAll(solver);
+    }
+
+    private static void guessAll(Solver solver) {
+        int total = 0;
+        int failed = 0;
+        long start = System.nanoTime();
         try (FileWriter writer = new FileWriter("results.txt")) {
             for (String answer : solver.answers) {
                 List<String> result = solver.guessesFor(answer, List.of("trace"));
+                total += result.size();
+                if (result.size() > 6) {
+                    failed++;
+                }
                 writer.write(String.join(",", result));
                 writer.write("\n");
             }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
+
+        System.out.println("Time : " + (System.nanoTime() - start) / 1_000_000_000F);
+        System.out.println("Total : " + total);
+        System.out.println("Failed : " + failed);
     }
 
 }
