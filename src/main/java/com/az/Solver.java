@@ -8,9 +8,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -24,10 +26,10 @@ public class Solver {
 
     public void init() {
         answers = new LinkedHashSet<>(readLines("/answers.txt"));
-        guesses = new HashSet<>(readLines("/guesses.txt"));
-        guessesAndAnswers = new HashSet<>();
+        guesses = new LinkedHashSet<>(readLines("/guesses.txt"));
+        guessesAndAnswers = new LinkedHashSet<>();
         guessesAndAnswers.addAll(answers);
-        guessesAndAnswers.addAll(guesses);
+        //        guessesAndAnswers.addAll(guesses);
     }
 
     public List<String> guessesFor(String answer) {
@@ -35,24 +37,34 @@ public class Solver {
     }
 
     public List<String> guessesFor(String answer, List<String> seed) {
-        List<String> result = new ArrayList<>();
-
         Set<String> answers = this.answers;
-        Set<String> guesses = this.answers;
+        //        Set<String> guesses = this.answers;
         //        Set<String> guesses = this.guesses;
-//                Set<String> guesses = this.guessesAndAnswers;
+        Set<String> guesses = this.guessesAndAnswers;
 
-        String match = null;
+        List<String> seedResult = new ArrayList<>();
         for (String guess : seed) {
-            match = match(guess, answer);
+            String match = match(guess, answer);
             answers = filter(answers, guess, match);
             guesses = filter(guesses, guess, match);
-            result.add(guess);
+            seedResult.add(guess);
+            if ("GGGGG".equals(match)) {
+                return seedResult;
+            }
         }
 
+        return guessesFor(answer, seed, answers, guesses);
+    }
+
+    public List<String> guessesFor(String answer, List<String> seed, Set<String> answers, Set<String> guesses) {
+        List<String> result = new ArrayList<>(seed);
+
+        String match = null;
         while (!"GGGGG".equals(match)) {
-            String guess = nextGuess(guesses, answers);
-//            String guess = nextGuessYellow(guesses, answers);
+                        String guess = nextGuess(guesses, answers);
+            //            String guess = nextGuessYellow(guesses, answers);
+            //            String guess = nextGuessCount(guesses, answers);
+//            String guess = nextGuessExhaust(guesses, answers);
             match = match(guess, answer);
             answers = filter(answers, guess, match);
             guesses = filter(guesses, guess, match);
@@ -79,11 +91,46 @@ public class Solver {
         return bestGuess;
     }
 
+    private String nextGuessExhaust(Set<String> guesses, Set<String> answers) {
+        int max = Integer.MAX_VALUE;
+        String bestGuess = null;
+        for (String guess : guesses) {
+            final int eval = evalGuess(guess, answers);
+            if (eval < max) {
+                max = eval;
+                bestGuess = guess;
+            }
+        }
+        return bestGuess;
+    }
+
+    private int evalGuess(String guess, Set<String> answers) {
+        if (answers.size() == 1) {
+            return 1;
+        }
+        Map<String, Set<String>> various = new HashMap<>();
+        for (String answer : answers) {
+            final String match = match(guess, answer);
+            various.putIfAbsent(match, new LinkedHashSet<>());
+            various.get(match).add(answer);
+        }
+
+        int max = 0;
+        for (Map.Entry<String, Set<String>> entry : various.entrySet()) {
+            int bestSubguess = Integer.MAX_VALUE;
+            for (String subGuess : entry.getValue()) {
+                bestSubguess = Math.min(bestSubguess, evalGuess(subGuess, entry.getValue()));
+            }
+            max = Math.max(max, bestSubguess);
+        }
+        return max + 1;
+    }
+
     private String nextGuessYellow(Set<String> guesses, Set<String> answers) {
         int maxGuess = 0;
         String bestGuess = null;
         for (String guess : guesses) {
-//            Set<String> various = new HashSet<>();
+            Set<String> various = new HashSet<>();
             int currentGuess = 0;
             for (String answer : answers) {
                 final String match = match(guess, answer);
@@ -92,10 +139,57 @@ public class Solver {
 
                 currentGuess += yellow;
                 currentGuess += green;
-//                various.add(match(guess, answer));
+                various.add(match);
             }
-            if (currentGuess >= maxGuess) {
+            if (various.size() > 0) {
+                currentGuess = currentGuess / various.size();
+                if (currentGuess > maxGuess) {
+                    maxGuess = currentGuess;
+                    bestGuess = guess;
+                }
+            }
+        }
+
+        return bestGuess;
+    }
+
+    private String nextGuessCount(Set<String> guesses, Set<String> answers) {
+        int maxGuess = Integer.MAX_VALUE;
+        String bestGuess = null;
+        for (String guess : guesses) {
+            Map<String, Integer> various = new HashMap<>();
+            int currentGuess = 0;
+            for (String answer : answers) {
+                final String match = match(guess, answer);
+                long yellow = match.chars().filter(ch -> ch == 'Y').count();
+                long green = match.chars().filter(ch -> ch == 'G').count();
+
+                currentGuess += yellow;
+                currentGuess += green;
+                various.merge(match, 1, Integer::sum);
+            }
+            int max = various.values().stream().max(Integer::compareTo).get();
+            if (max < maxGuess) {
                 maxGuess = currentGuess;
+                bestGuess = guess;
+            }
+        }
+
+        return bestGuess;
+    }
+
+    private String nextGuess2(Set<String> guesses, Set<String> answers) {
+        int maxGuess = Integer.MAX_VALUE;
+        String bestGuess = null;
+        for (String guess : guesses) {
+            Map<String, Integer> various = new HashMap<>();
+            for (String answer : answers) {
+                various.merge(match(guess, answer), 1, Integer::sum);
+            }
+
+            final Integer localMax = various.values().stream().max(Integer::compareTo).get();
+            if (localMax <= maxGuess) {
+                maxGuess = localMax;
                 bestGuess = guess;
             }
         }
@@ -211,14 +305,14 @@ public class Solver {
         final Solver solver = new Solver();
         solver.init();
 
-//                Set<String> answers = solver.answers;
-//                answers = solver.filter(answers, "trace", "BBBBB");
-//                answers = solver.filter(answers, "spiny", "GBGBB");
-//                answers = solver.filter(answers, "swill", "GBGGG");
-//                answers = solver.filter(answers, "rates", "BYBYB");
-//                System.out.println(solver.nextGuess(answers, answers));
-//        System.out.println(solver.guessesFor("pleat", List.of()));
-                guessAll(solver);
+        //                Set<String> answers = solver.answers;
+        //                answers = solver.filter(answers, "trace", "BBBBB");
+        //                answers = solver.filter(answers, "spiny", "GBGBB");
+        //                answers = solver.filter(answers, "swill", "GBGGG");
+        //                answers = solver.filter(answers, "rates", "BYBYB");
+        //                System.out.println(solver.nextGuess(answers, answers));
+        System.out.println(solver.guessesFor("elder", List.of("salet")));
+//        guessAll(solver);
     }
 
     private static void guessAll(Solver solver) {
@@ -227,7 +321,7 @@ public class Solver {
         long start = System.nanoTime();
         try (FileWriter writer = new FileWriter("results.txt")) {
             for (String answer : solver.answers) {
-                List<String> result = solver.guessesFor(answer, List.of("teals"));
+                List<String> result = solver.guessesFor(answer, List.of("salet"));
                 total += result.size();
                 if (result.size() > 6) {
                     System.out.println(result);
