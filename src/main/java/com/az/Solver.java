@@ -40,7 +40,7 @@ public class Solver {
         Set<String> answers = this.answers;
         Set<String> guesses = this.answers;
         //        Set<String> guesses = this.guesses;
-        //        Set<String> guesses = this.guessesAndAnswers;
+//                Set<String> guesses = this.guessesAndAnswers;
 
         String match = null;
         for (String guess : seed) {
@@ -52,6 +52,7 @@ public class Solver {
 
         while (!"GGGGG".equals(match)) {
             String guess = nextGuess(guesses, answers);
+//            String guess = nextGuessYellow(guesses, answers);
             match = match(guess, answer);
             answers = filter(answers, guess, match);
             guesses = filter(guesses, guess, match);
@@ -71,6 +72,30 @@ public class Solver {
             }
             if (various.size() >= maxGuess) {
                 maxGuess = various.size();
+                bestGuess = guess;
+            }
+        }
+
+        return bestGuess;
+    }
+
+    private String nextGuessYellow(Set<String> guesses, Set<String> answers) {
+        int maxGuess = 0;
+        String bestGuess = null;
+        for (String guess : guesses) {
+//            Set<String> various = new HashSet<>();
+            int currentGuess = 0;
+            for (String answer : answers) {
+                final String match = match(guess, answer);
+                long yellow = match.chars().filter(ch -> ch == 'Y').count();
+                long green = match.chars().filter(ch -> ch == 'G').count();
+
+                currentGuess += yellow;
+                currentGuess += green;
+//                various.add(match(guess, answer));
+            }
+            if (currentGuess >= maxGuess) {
+                maxGuess = currentGuess;
                 bestGuess = guess;
             }
         }
@@ -186,10 +211,12 @@ public class Solver {
         final Solver solver = new Solver();
         solver.init();
 
-        //        Set<String> answers = solver.answers;
-        //        answers = solver.filter(answers, "bingo", "BYBGB");
-        //        answers = solver.filter(answers, "rates", "BYBYB");
-        //        System.out.println(solver.nextGuess(answers, answers));
+//                Set<String> answers = solver.answers;
+//                answers = solver.filter(answers, "trace", "BBBBB");
+//                answers = solver.filter(answers, "spiny", "GBGBB");
+//                answers = solver.filter(answers, "swill", "GBGGG");
+//                answers = solver.filter(answers, "rates", "BYBYB");
+//                System.out.println(solver.nextGuess(answers, answers));
 //        System.out.println(solver.guessesFor("pleat", List.of()));
                 guessAll(solver);
     }
@@ -200,10 +227,14 @@ public class Solver {
         long start = System.nanoTime();
         try (FileWriter writer = new FileWriter("results.txt")) {
             for (String answer : solver.answers) {
-                List<String> result = solver.guessesFor(answer, List.of("trace"));
+                List<String> result = solver.guessesFor(answer, List.of("teals"));
                 total += result.size();
                 if (result.size() > 6) {
+                    System.out.println(result);
                     failed++;
+                    for (String item : result) {
+                        System.out.println(solver.match(item, answer));
+                    }
                 }
                 writer.write(String.join(",", result));
                 writer.write("\n");
